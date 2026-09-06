@@ -112,12 +112,6 @@ export function setupLearningUI(pause: () => void) {
     el("save-word").setAttribute("aria-pressed", String(saved));
   }
 
-  function paintPhraseSave() {
-    const saved = savedPhrases.includes(activePhrase.id);
-    el("save-action").setAttribute("aria-pressed", String(saved));
-    el("save-state").textContent = saved ? "保存済み" : "保存";
-  }
-
   function showSheet(
     title: string,
     phonetic: string,
@@ -240,7 +234,8 @@ export function setupLearningUI(pause: () => void) {
       );
     paintWordSave();
   };
-  el("save-action").onclick = () => {
+  function togglePhrase(phrase = activePhrase) {
+    activePhrase = phrase;
     const previous = [...savedPhrases];
     savedPhrases = savedPhrases.includes(activePhrase.id)
       ? savedPhrases.filter((id) => id !== activePhrase.id)
@@ -252,14 +247,20 @@ export function setupLearningUI(pause: () => void) {
           ? "このフレーズを保存しました"
           : "フレーズの保存を解除しました",
       );
-    paintPhraseSave();
-  };
+    return savedPhrases.includes(activePhrase.id);
+  }
 
   function setActivePhrase(phrase: Caption) {
     activePhrase = phrase;
-    paintPhraseSave();
   }
 
-  paintPhraseSave();
-  return { openWord, openExplanation, setActivePhrase, speak, toast };
+  return {
+    openWord,
+    openExplanation,
+    setActivePhrase,
+    togglePhrase,
+    isPhraseSaved: (id: string) => savedPhrases.includes(id),
+    speak,
+    toast,
+  };
 }
