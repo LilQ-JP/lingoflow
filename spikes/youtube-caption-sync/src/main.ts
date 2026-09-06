@@ -1,5 +1,6 @@
 import "./style.css";
 import { setupLearningUI, wordMarkup } from "./learning-ui.ts";
+import { setupSpeakingPractice } from "./speaking-practice.ts";
 import { captions, VIDEO_ID } from "./captions.ts";
 import { activeCaption, phraseTarget, clampTime, SeekGuard } from "./sync.ts";
 import { loadYouTube, type Player } from "./youtube.ts";
@@ -24,6 +25,13 @@ const icons = {
     '<svg viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 1.3 6.4"/><path d="M4 4v6h6"/></svg>',
   microphone:
     '<svg viewBox="0 0 24 24"><rect x="8" y="3" width="8" height="12" rx="4"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"/></svg>',
+  close: '<svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>',
+  volume:
+    '<svg viewBox="0 0 24 24"><path d="M5 10v4h4l5 4V6l-5 4Z"/><path d="M17 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>',
+  userAudio:
+    '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4Z"/></svg>',
+  retry:
+    '<svg viewBox="0 0 24 24"><path d="M20 7v5h-5"/><path d="M19 12a7 7 0 1 0-2 5"/></svg>',
 };
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
@@ -70,6 +78,34 @@ app.innerHTML = `
     <p id="status" role="status">YouTubeに接続しています…</p><div id="error" role="alert" hidden></div>
   </footer>
   <dialog id="word-sheet" aria-labelledby="word-title"><div class="sheet-handle" aria-hidden="true"></div><button id="close-word" class="icon-button close-word" aria-label="解説を閉じる"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button><h2 id="word-title"></h2><div class="phonetic-row"><span id="word-phonetic"></span><button id="speak-small" aria-label="発音を聞く" class="sound-icon"><svg viewBox="0 0 24 24"><path d="M5 10v4h4l5 4V6l-5 4Z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg></button></div><span id="word-pos" class="pos"></span><p id="word-meaning" class="meaning"></p><div class="word-example"><h3>この動画では</h3><p id="word-example"></p><p id="word-translation"></p></div><div class="word-example usage"><h3>使い方のポイント</h3><p id="word-usage"></p></div><p class="dictionary-note">技術スパイク用のサンプル解説</p><button id="save-word" class="outline-button"></button><button id="speak-word" class="indigo-button"><svg viewBox="0 0 24 24"><path d="M5 10v4h4l5 4V6l-5 4Z"/><path d="M17 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg><span>発音を聞く</span></button><p id="speech-state" role="status"></p></dialog>
+  <dialog id="practice-sheet" class="practice-sheet" aria-labelledby="practice-title">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <button id="close-practice" class="icon-button close-practice" aria-label="発話練習を閉じる">${icons.close}</button>
+    <div class="practice-heading"><span>Speaking Practice</span><strong>即時採点</strong></div>
+    <h2 id="practice-title"></h2>
+    <p id="practice-translation" class="practice-translation"></p>
+    <div class="model-audio" aria-label="お手本音声">
+      <button id="model-normal" class="audio-button">${icons.volume}<span>お手本を聞く</span><strong>1.0x</strong></button>
+      <button id="model-slow" class="audio-button">${icons.volume}<span>ゆっくり</span><strong>0.8x</strong></button>
+    </div>
+    <div class="microphone-stage">
+      <button id="practice-mic" class="practice-mic" aria-label="録音を開始" aria-pressed="false">${icons.microphone}</button>
+      <p id="practice-prompt">マイクを押して話してください</p>
+      <p id="live-transcript" class="live-transcript" aria-live="polite"></p>
+    </div>
+    <div id="practice-result" class="practice-result" hidden>
+      <div class="result-summary"><span id="result-badge"></span><strong id="result-score"></strong></div>
+      <p id="scored-words" class="scored-words"></p>
+      <p class="recognized-label">認識した音声</p>
+      <p id="recognized-text" class="recognized-text"></p>
+      <div class="feedback-grid"><div><span>良かった点</span><p id="positive-feedback"></p></div><div><span>改善ポイント</span><p id="improvement-feedback"></p></div></div>
+    </div>
+    <p id="practice-error" class="practice-error" role="alert" hidden></p>
+    <div class="practice-actions">
+      <button id="play-recording" class="secondary-3d" disabled>${icons.userAudio}<span>自分の声を聞く</span></button>
+      <button id="retry-practice" class="primary-3d" disabled>${icons.retry}<span>もう一度チャレンジ</span></button>
+    </div>
+  </dialog>
 </main>
 <div id="toast" role="status" class="toast" hidden></div>
 <details class="diagnostics"><summary>開発・表示設定</summary><label>表示テーマ <select id="theme"><option value="dark">ダーク</option><option value="light">ライト</option><option value="system">システム</option></select></label><p>手動の抜粋字幕を約50ms間隔で同期。字幕のない区間があります。</p><div class="metrics"><span>再生時刻(ms) <output id="clock">0</output></span><span>状態 <output id="state">loading</output></span><span>現在字幕 <output id="active">none</output></span><span>シーク要求 <output id="seek-target">—</output></span></div><pre id="events" aria-label="同期イベント履歴"></pre><div class="extra-controls"><button id="back" disabled>−5秒</button><button id="forward" disabled>＋5秒</button><button id="replay" disabled>フレーズを再生</button></div></details>`;
@@ -108,6 +144,7 @@ let repeatCaption: (typeof captions)[number] | undefined;
 let lastActual = 0,
   lastActualAt = 0;
 const learning = setupLearningUI(() => player?.pauseVideo());
+const speaking = setupSpeakingPractice(() => player?.pauseVideo());
 
 function record(message: string) {
   events.unshift(message);
@@ -383,8 +420,7 @@ el("speed").onclick = () => {
   player.setPlaybackRate(next);
 };
 el("speak-action").onclick = () => {
-  player?.pauseVideo();
-  learning.toast("表示中の一文を、動画と同じリズムで声に出してみよう");
+  speaking.open(currentForAction(), el("speak-action"));
 };
 el("focus-replay").onclick = () => replayPhrase(currentForAction());
 el("focus-explain").onclick = () =>
@@ -432,7 +468,10 @@ el<HTMLSelectElement>("theme").onchange = (event) => {
     event.target as HTMLSelectElement
   ).value;
 };
-window.addEventListener("pagehide", () => cancelAnimationFrame(raf));
+window.addEventListener("pagehide", () => {
+  cancelAnimationFrame(raf);
+  speaking.destroy();
+});
 window.addEventListener("pageshow", (event) => {
   if (event.persisted && ready) raf = requestAnimationFrame(poll);
 });

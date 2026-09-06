@@ -214,7 +214,7 @@ export function setupLearningUI(pause: () => void) {
   sheet.addEventListener("close", () => {
     if ("speechSynthesis" in window) speechSynthesis.cancel();
     if (trigger?.isConnected) trigger.focus();
-    else el("ai-explain").focus();
+    else document.querySelector<HTMLButtonElement>("#focus-explain")?.focus();
   });
   el("save-word").onclick = () => {
     if (!currentWord) {
