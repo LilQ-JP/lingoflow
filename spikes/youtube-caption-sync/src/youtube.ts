@@ -6,6 +6,9 @@ export interface Player {
   getDuration(): number;
   getPlayerState(): number;
   destroy(): void;
+  getPlaybackRate(): number;
+  setPlaybackRate(rate: number): void;
+  getAvailablePlaybackRates(): number[];
 }
 interface PlayerEvent {
   target: Player;
@@ -21,6 +24,7 @@ interface Options {
     onStateChange(e: PlayerEvent): void;
     onError(e: PlayerEvent): void;
     onAutoplayBlocked(): void;
+    onPlaybackRateChange(e: PlayerEvent): void;
   };
 }
 declare global {
