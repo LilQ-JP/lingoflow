@@ -1,0 +1,67 @@
+# macOS and editor metadata
+.DS_Store
+._*
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment variables and local secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+*.mobileprovision
+credentials*.json
+service-account*.json
+secrets/
+
+# JavaScript / TypeScript
+node_modules/
+dist/
+build/
+.next/
+.nuxt/
+.svelte-kit/
+.vite/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Mobile build outputs
+ios/Pods/
+ios/build/
+android/.gradle/
+android/build/
+android/app/build/
+*.xcuserstate
+xcuserdata/
+DerivedData/
+
+# Local databases, caches, and runtime files
+*.sqlite
+*.sqlite3
+*.db
+*.log
+.cache/
+.tmp/
+tmp/
+
+# Test and deployment tooling
+playwright-report/
+test-results/
+.vercel/
+.netlify/
+
+# Obsidian workspace state
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
