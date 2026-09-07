@@ -1,6 +1,7 @@
 import "./style.css";
 import { setupLearningUI, wordMarkup } from "./learning-ui.ts";
 import { setupSpeakingPractice } from "./speaking-practice.ts";
+import { setupClozeQuiz } from "./cloze-quiz.ts";
 import { captions, VIDEO_ID } from "./captions.ts";
 import { activeCaption, phraseTarget, clampTime, SeekGuard } from "./sync.ts";
 import { loadYouTube, type Player } from "./youtube.ts";
@@ -32,6 +33,7 @@ const icons = {
     '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4Z"/></svg>',
   retry:
     '<svg viewBox="0 0 24 24"><path d="M20 7v5h-5"/><path d="M19 12a7 7 0 1 0-2 5"/></svg>',
+  quiz: '<svg viewBox="0 0 24 24"><path d="M7 3h10a2 2 0 0 1 2 2v16H5V5a2 2 0 0 1 2-2Z"/><path d="M9 8h6M9 12h3M15 16l1.5 1.5L20 14"/></svg>',
 };
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
@@ -40,6 +42,7 @@ app.innerHTML = `
   <header class="app-header">
     <button id="go-back" class="icon-button" aria-label="戻る">${icons.back}</button>
     <h1>Me at the zoo</h1>
+    <button id="quiz-action" class="quiz-launch requires-player" disabled aria-label="穴埋めクイズを始める">${icons.quiz}<span>Quiz</span></button>
     <button id="translate-toggle" class="language-toggle" aria-pressed="true" aria-label="日本語訳を表示中">JA <span>/</span> EN</button>
   </header>
   <div class="video-shell"><div id="youtube-player"></div></div>
@@ -106,6 +109,7 @@ app.innerHTML = `
       <button id="retry-practice" class="primary-3d" disabled>${icons.retry}<span>もう一度チャレンジ</span></button>
     </div>
   </dialog>
+  <dialog id="quiz-sheet" class="quiz-sheet" aria-labelledby="quiz-title"></dialog>
 </main>
 <div id="toast" role="status" class="toast" hidden></div>
 <details class="diagnostics"><summary>開発・表示設定</summary><label>表示テーマ <select id="theme"><option value="dark">ダーク</option><option value="light">ライト</option><option value="system">システム</option></select></label><p>手動の抜粋字幕を約50ms間隔で同期。字幕のない区間があります。</p><div class="metrics"><span>再生時刻(ms) <output id="clock">0</output></span><span>状態 <output id="state">loading</output></span><span>現在字幕 <output id="active">none</output></span><span>シーク要求 <output id="seek-target">—</output></span></div><pre id="events" aria-label="同期イベント履歴"></pre><div class="extra-controls"><button id="back" disabled>−5秒</button><button id="forward" disabled>＋5秒</button><button id="replay" disabled>フレーズを再生</button></div></details>`;
@@ -145,6 +149,21 @@ let lastActual = 0,
   lastActualAt = 0;
 const learning = setupLearningUI(() => player?.pauseVideo());
 const speaking = setupSpeakingPractice(() => player?.pauseVideo());
+let quizAudioTimer = 0;
+const quiz = setupClozeQuiz({
+  pauseVideo: () => {
+    clearTimeout(quizAudioTimer);
+    player?.pauseVideo();
+  },
+  playPhrase: (caption) => {
+    clearTimeout(quizAudioTimer);
+    replayPhrase(caption);
+    quizAudioTimer = window.setTimeout(
+      () => player?.pauseVideo(),
+      caption.endMs - phraseTarget(caption.startMs) + 180,
+    );
+  },
+});
 
 function record(message: string) {
   events.unshift(message);
@@ -422,6 +441,7 @@ el("speed").onclick = () => {
 el("speak-action").onclick = () => {
   speaking.open(currentForAction(), el("speak-action"));
 };
+el("quiz-action").onclick = () => quiz.open(el("quiz-action"));
 el("focus-replay").onclick = () => replayPhrase(currentForAction());
 el("focus-explain").onclick = () =>
   explainPhrase(currentForAction(), el("focus-explain"));
@@ -471,6 +491,7 @@ el<HTMLSelectElement>("theme").onchange = (event) => {
 window.addEventListener("pagehide", () => {
   cancelAnimationFrame(raf);
   speaking.destroy();
+  quiz.destroy();
 });
 window.addEventListener("pageshow", (event) => {
   if (event.persisted && ready) raf = requestAnimationFrame(poll);

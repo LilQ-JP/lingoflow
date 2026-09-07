@@ -31,7 +31,8 @@ npm run preview
 5. ヘッダーの「JA / EN」で日本語訳を表示・非表示にできます。
 6. 下部デッキで前後フレーズ、1文リピート、再生・停止、速度変更、発話練習への切り替えを試せます。
 7. 「Practice Speaking」を押すと動画が停止し、表示中の字幕を使った発話練習シートが開きます。1.0x／0.8xのお手本、マイク認識、即時採点、自分の録音再生、再挑戦を確認できます。
-8. 「開発・表示設定」を開くとプレイヤーの時刻・状態・字幕ID・シーク要求と着地を確認できます。
+8. ヘッダーの「Quiz」を押すと、動画内の3表現を使った4択穴埋めクイズが開きます。フレーズ音声、正誤バナー、結果、再挑戦を確認できます。
+9. 「開発・表示設定」を開くとプレイヤーの時刻・状態・字幕ID・シーク要求と着地を確認できます。
 
 ## 発話練習（Technical Spike 2）
 
@@ -40,6 +41,14 @@ npm run preview
 - 大文字小文字、アポストロフィ、記号を除いて単語列を整列比較します。目標単語に対する一致率が85%以上なら「伝わる！」、60〜84%なら「もう一度！」、60%未満なら「要練習」です。
 - 録音BlobとObject URLはメモリだけに保持します。閉じる、ページ離脱、再挑戦時に録音停止、MediaStreamトラック停止、Object URL破棄を行います。録音や認識結果をストレージへ保存しません。
 - マイク権限拒否、音声認識・録音API非対応、無音、音声認識エラーを日本語で案内します。
+
+## 段階式穴埋め（Technical Spike 3）
+
+- `elephants`、`long trunks`、`pretty much` の3問を、動画の字幕・日本語訳・再生区間と対応させています。
+- 各問は正解1つとdistractor 3つを持ち、選択後にだけ回答できます。回答確定後は選択をロックします。
+- 正解時はEmerald、不正解時はCoral Orangeの判定バナーを表示します。色に加えてSVG、文言、正解表現、短い解説でも結果を伝えます。
+- 効果音はWeb Audio APIのOscillatorとGainで都度合成し、外部音声ファイルを使いません。
+- 完了時に正答数と1問5 XPを表示し、動画ID、完了日時、午前4時区切りの学習日、正答数、XPを `localStorage` へ保存します。
 
 ## 同期の方式と精度
 
@@ -60,19 +69,21 @@ npm run preview
 - `src/main.ts`: 画面、公式プレイヤー連携、状態、50ms取得、操作
 - `src/learning-ui.ts`: 解説シート、単語・フレーズ保存、発音読み上げ
 - `src/speaking-practice.ts`: 発話練習、ブラウザ音声API、単語照合、3段階採点、録音破棄
+- `src/cloze-quiz.ts`: 4択問題、セッション状態、動画区間再生、正誤音、完了記録
 - `src/youtube.ts`: APIローダーと最小型定義
 - `src/sync.ts`: 時刻判定とシーク保護（単体テスト対象）
 - `src/captions.ts`: 固定の抜粋字幕
 - `src/style.css`: レスポンシブ、ライト・ダーク、色トークン
 - `tests/sync.test.ts`: 境界、preroll、古い値、連続シーク、タイムアウト
 - `tests/speaking-practice.test.ts`: 正規化、語の抜けを含む整列、採点境界
+- `tests/cloze-quiz.test.ts`: 4択データ、厳密採点、状態遷移、午前4時境界
 - `VERIFICATION.md`: 実ブラウザでの観測と限界
 
 `lingoflow_advanced_player_concept_2026-09-06.jpg` と `lingoflow_transcript_view_concept_2026-09-06.jpg` を基準に、Deep Night Slateの画面、字幕一覧、インディゴの現在行、統一色の操作デッキを採用しています。操作アイコンはすべてインラインSVGで、動画上には独自操作を重ねていません。PCでは最大430pxのアプリ枠を中央表示し、スマホでは画面幅に広がります。設計書自体は変更していません。
 
 ## 参照
 
-プレイヤー実装では36 v1.1、26 v0.2、18 v0.5、37 v0.1を参照し、Technical Spike 2では指定された26 v0.4第9章を追加参照しました。
+プレイヤー実装では36 v1.1、26 v0.2、18 v0.5、37 v0.1を参照し、Technical Spike 2では26 v0.4第9章、Technical Spike 3では30 v0.7を追加参照しました。
 
 - [YouTube公式 IFrame API](https://developers.google.com/youtube/iframe_api_reference)：公式制御、時刻取得、シーク、イベント、最小サイズ
 - [YouTube公式 Player parameters](https://developers.google.com/youtube/player_parameters)：埋め込み設定
