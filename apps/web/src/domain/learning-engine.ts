@@ -24,6 +24,7 @@ export interface ExpressionProgress {
   expressionId: string;
   format: ExerciseFormat;
   state: LearningState;
+  attemptedDays?: Partial<Record<ExerciseFormat, string[]>>;
   promotionDays: Partial<Record<ExerciseFormat, string[]>>;
   independentMeaningDays: string[];
   productionCompleted: boolean;
@@ -78,6 +79,12 @@ export function applyAttempt(
     result.dailyExpressionClosed = false;
     result.pendingDemotion = false;
   }
+  if(result.dailyExpressionClosed) return result;
+  const alreadyAttempted = result.attemptedDays?.[attempt.format]?.includes(attempt.studyDay) ?? false;
+  if(attempt.retryIndex === 0){
+    result.attemptedDays ??= {};
+    result.attemptedDays[attempt.format] = unique([...(result.attemptedDays[attempt.format] ?? []),attempt.studyDay]);
+  }
   if (attempt.productionCompleted) result.productionCompleted = true;
 
   if (
@@ -114,7 +121,7 @@ export function applyAttempt(
     return result;
   }
 
-  const promotionEligible = attempt.firstAttempt && !attempt.extraHintUsed;
+  const promotionEligible = attempt.firstAttempt && !attempt.extraHintUsed && !alreadyAttempted && attempt.format === result.format;
   if (promotionEligible) {
     const days = unique([
       ...(result.promotionDays[attempt.format] ?? []),
@@ -143,7 +150,7 @@ export function applyAttempt(
       ...result.independentMeaningDays,
       attempt.studyDay,
     ]);
-  if (result.state === "review_required" && unassistedMeaning)
+  if (result.everMastered && result.state === "review_required" && unassistedMeaning)
     result.state = "independent";
   else if (
     result.independentMeaningDays.length >= 2 &&

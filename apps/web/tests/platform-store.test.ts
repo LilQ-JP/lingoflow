@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { createLearningStore } from '../src/server/learning-storage-core.ts';
+import { parseWorkspacePatch,parseAttempt } from '../src/server/request-validation.ts';
+import type { LearningAttempt } from '../src/domain/types.ts';
+import type { ProgressAttempt } from '../src/domain/learning-engine.ts';
+test('store separates users, deduplicates attempts and recovers from rejection',async()=>{const dir=await mkdtemp(path.join(os.tmpdir(),'lf-test-'));try{const s=createLearningStore(path.join(dir,'records.json'));const a:LearningAttempt={id:'one',userId:'a',materialId:'m',phraseId:'p',exerciseFormat:'choice',correct:true,hintUsed:false,firstAttempt:true,answerRevealed:false,retryIndex:0,productionCompleted:false,occurredAt:'2026-09-07T09:00:00Z',learningDay:'2026-09-07'};const p:ProgressAttempt={studyDay:a.learningDay,format:'choice',correct:true,firstAttempt:true,extraHintUsed:false,answerRevealed:false,retryIndex:0};assert.equal((await s.saveLearningOutcome('a','p',a,null,p)).inserted,true);assert.equal((await s.saveLearningOutcome('a','p',a,null,p)).inserted,false);await assert.rejects(s.saveLearningOutcome('a','p',{...a,correct:false},null,p));assert.equal((await s.saveLearningOutcome('b','p',{...a,userId:'b'},null,p)).inserted,true);assert.equal((await s.getLearningData('a')).attempts.length,1);assert.equal((await s.getLearningData('b')).attempts.length,1);await s.patchWorkspace('a',{theme:'dark'});assert.equal((await s.getWorkspace('a')).preferences.theme,'dark');assert.equal((await s.getWorkspace('b')).preferences.theme,'system')}finally{await rm(dir,{recursive:true,force:true})}});
+test('invalid input is rejected before saving',()=>{assert.throws(()=>parseWorkspacePatch({theme:'broken'}));assert.throws(()=>parseWorkspacePatch({dailyGoalMinutes:999}));assert.throws(()=>parseAttempt({}));assert.throws(()=>parseWorkspacePatch({roadmap:[{id:'s',title:'a',description:'',completed:'yes'}]}))});

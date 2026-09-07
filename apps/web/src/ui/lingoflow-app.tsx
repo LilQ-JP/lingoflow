@@ -1,297 +1,38 @@
-"use client";
-import { useEffect, useRef, useState } from "react";
-import { ja } from "@/i18n/ja";
-import type { ExpressionProgress } from "@/domain/learning-engine";
-import { sampleMaterial } from "@/domain/sample-material";
-import type { UserLanguageProfile } from "@/domain/types";
-type Stage = "login" | "language" | "lesson" | "quiz" | "done";
-type Player = {
-  playVideo(): void;
-  pauseVideo(): void;
-  seekTo(seconds: number, allowSeekAhead: boolean): void;
-  getCurrentTime(): number;
-  destroy?(): void;
-};
-declare global {
-  interface Window {
-    YT?: {
-      Player: new (id: string, options: Record<string, unknown>) => Player;
-    };
-    onYouTubeIframeAPIReady?(): void;
-  }
+'use client';
+import Image from 'next/image';
+import { useCallback, useEffect, useState } from 'react';
+import { Icon, type IconName } from './icons';
+import { Onboarding } from './onboarding';
+import { LessonPlayer } from './lesson-player';
+import { QuizSession } from './quiz-session';
+import { sampleMaterial } from '@/domain/sample-material';
+import type { UserLanguageProfile } from '@/domain/types';
+import type { WorkspaceSnapshot, WorkspacePreferences } from '@/domain/platform';
+import { proposeRoadmap } from '@/domain/onboarding';
+
+type Tab='home'|'explore'|'learn'|'me';
+const tabs:{id:Tab;label:string;icon:IconName}[]=[{id:'home',label:'ホーム',icon:'home'},{id:'explore',label:'探す',icon:'search'},{id:'learn',label:'学習',icon:'book'},{id:'me',label:'マイ',icon:'user'}];
+export function LingoflowApp({initialAuthenticated,initialProfile: _initialProfile,completionCount: _completionCount}:{initialAuthenticated:boolean;initialProfile:UserLanguageProfile|null;completionCount:number}){
+ void _initialProfile;void _completionCount;
+ const [authenticated,setAuthenticated]=useState(initialAuthenticated),[workspace,setWorkspace]=useState<WorkspaceSnapshot|null>(null),[tab,setTab]=useState<Tab>('home'),[onboarding,setOnboarding]=useState(false),[lesson,setLesson]=useState(false),[quizOpen,setQuizOpen]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[query,setQuery]=useState(''),[filter,setFilter]=useState('すべて'),[languageSheet,setLanguageSheet]=useState(false);
+ const refresh=useCallback(async()=>{const r=await fetch('/api/workspace',{cache:'no-store'});if(!r.ok)throw new Error('学習データを取得できませんでした。');setWorkspace(await r.json())},[]);
+ useEffect(()=>{if(!authenticated)return;let active=true;fetch('/api/workspace',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('学習データを取得できませんでした。');return r.json()}).then(data=>{if(active)setWorkspace(data)}).catch(e=>{if(active)setError(e.message)});return()=>{active=false}},[authenticated]);
+ useEffect(()=>{const media=matchMedia('(prefers-color-scheme: dark)');const apply=()=>{document.documentElement.dataset.theme=workspace?.preferences.theme==='system'||!workspace?media.matches?'dark':'light':workspace.preferences.theme};apply();media.addEventListener('change',apply);return()=>media.removeEventListener('change',apply)},[workspace]);
+ async function save(patch:Partial<WorkspacePreferences>){const r=await fetch('/api/workspace',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(patch)});if(!r.ok)throw new Error('変更を保存できませんでした。');setWorkspace(await r.json())}
+ async function login(){setBusy(true);setError('');try{const r=await fetch('/api/session',{method:'POST'});if(!r.ok)throw new Error('現在はローカル開発環境でのみ開始できます。');setAuthenticated(true);await refresh()}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
+ const prefs=workspace?.preferences,stats=workspace?.stats;
+ function change(patch:Partial<WorkspacePreferences>){void save(patch).catch(e=>setError(e.message))}
+ const roadmap=prefs?.roadmap.length?prefs.roadmap:proposeRoadmap('',[]);
+ const start=()=>{setLesson(true);setError('')};
+ const videoCard=(compact=false)=><article className={`video-tile ${compact?'compact':''}`}><button className="video-thumb" onClick={start} aria-label="Me at the zooを学ぶ"><Image unoptimized width={512} height={512} src="https://i.ytimg.com/vi/jNQXAC9IVRw/hqdefault.jpg" alt="Me at the zooの動画サムネイル"/><span className="thumb-play"><Icon name="play" size={20}/></span><span className="duration">0:19</span></button><div className="video-copy"><span className="eyebrow">ENGLISH · はじめての動画学習</span><h3><button onClick={start}>Me at the zoo</button></h3><p>jawed · 自然・動物</p><div className="video-tags"><span>5フレーズ</span><span>技術検証用サンプル</span></div></div><button aria-label="動画を保存" className={`icon-button save-video ${prefs?.savedVideoIds.includes(sampleMaterial.id)?'saved':''}`} onClick={()=>prefs&&change({savedVideoIds:prefs.savedVideoIds.includes(sampleMaterial.id)?prefs.savedVideoIds.filter(id=>id!==sampleMaterial.id):[...prefs.savedVideoIds,sampleMaterial.id]})}><Icon name="bookmark"/></button></article>;
+ if(!authenticated)return <div className="welcome-screen"><div className="welcome-mark">lingoflow<span/></div><div className="welcome-orbit"><Image unoptimized width={512} height={512} src="/brand/lingoflow-companion.png" alt="あなたの学習を応援する水滴の相棒"/></div><p className="eyebrow">REAL VIDEOS. REAL PROGRESS.</p><h1>好きから、<br/><em>話せるへ。</em></h1><p>好きな動画のひとことが、<br/>あなたの言葉になっていく。</p><button className="primary" onClick={()=>void login()} disabled={busy}>{busy?'準備しています…':'学習をはじめる'}<Icon name="arrow"/></button><small>ローカル開発版 · Google / Appleログインは接続準備中</small>{error&&<p role="alert">{error}</p>}</div>;
+ if(onboarding&&prefs)return <Onboarding preferences={prefs} onSave={save} onClose={()=>setOnboarding(false)}/>;
+ if(lesson)return <div className="lesson-shell"><button className="return-home" onClick={()=>{setLesson(false);setQuizOpen(false);void refresh()}}><Icon name="back"/>学習ホームに戻る</button>{quizOpen?<QuizSession workspace={workspace} onClose={()=>{setQuizOpen(false);void refresh()}}/>:<LessonPlayer onQuiz={()=>setQuizOpen(true)}/>}</div>;
+ return <div className="app-frame"><aside className="sidebar"><button className="wordmark" onClick={()=>setTab('home')}>lingoflow<span/></button><nav>{tabs.map(t=><button key={t.id} className={tab===t.id?'active':''} onClick={()=>setTab(t.id)}><Icon name={t.icon}/>{t.label}{tab===t.id&&<i/>}</button>)}</nav><div className="sidebar-foot"><span className="tiny-orb"/><p>ひとことずつ、<br/>あなたのペースで。</p><small>LOCAL PREVIEW</small></div></aside><div className="main-frame"><header className="topbar"><div className="mobile-wordmark">lingoflow<span/></div><span className="desktop-breadcrumb">MY LEARNING SPACE <span>/</span> {tabs.find(t=>t.id===tab)?.label}</span><div className="top-actions"><button className="language-pill" onClick={()=>setLanguageSheet(true)}><span>EN</span>英語 <Icon name="globe" size={16}/></button><button className="streak-pill" onClick={()=>setTab('me')} aria-label="連続学習記録"><Icon name="fire"/>{stats?.currentStreak??0}</button><button className="avatar-button" onClick={()=>setTab('me')} aria-label="マイページ">{prefs?.displayName?.slice(0,1)||'L'}</button></div></header><main className="dashboard"><div className="page-intro"><div><p className="eyebrow">{tab==='home'?'A LITTLE EVERY DAY':tab==='explore'?'FOLLOW YOUR CURIOSITY':tab==='learn'?'YOUR LEARNING JOURNEY':'LOOK HOW FAR YOU’VE COME'}</p><h1>{tab==='home'?`${prefs?.displayName?`${prefs.displayName}さん、`:''}今日も、一歩ずつ。`:tab==='explore'?'好きな世界から、学ぼう。':tab==='learn'?'学んだことを、自分の言葉に。':'あなたの、小さな積み重ね。'}</h1><p>{tab==='home'?'ひとつの動画。ひとつの発見。今日の「できた」を増やそう。':tab==='explore'?'見たい動画と、覚えたい表現に出会う場所。':tab==='learn'?'ロードマップと教材を、ここにまとめて。':'比べるのは、昨日の自分。'}</p></div></div>{error&&<div role="alert" className="notice">{error}<button className="text-button" onClick={()=>{setError('');void refresh().catch(e=>setError(e.message))}}>再読み込み</button></div>}
+ {tab==='home'&&<div className="home-grid"><div className="home-primary"><section className="daily-hero"><div className="hero-text"><span className="hero-label"><span/>TODAY’S LITTLE STEP</span><h2>「わかる」を、<br/>「使える」に。</h2><p>動画で出会った表現を、<br/>今日のあなたのひとことに。</p><button className="white-button" onClick={start}>今日の学習をはじめる<Icon name="arrow"/></button><span className="hero-foot"><Icon name="clock" size={14}/>約{prefs?.dailyGoalMinutes??10}分<span>·</span>自分のペースで</span></div><div className="hero-art"><div className="orbit-ring one"/><div className="orbit-ring two"/><Image unoptimized width={512} height={512} src="/brand/lingoflow-companion.png" alt="ヘッドホン姿の学習の相棒"/><span className="art-spark s1"/><span className="art-spark s2"/></div></section><div className="mini-stats"><button onClick={()=>setTab('learn')}><span className="stat-icon lavender"><Icon name="refresh"/></span><span><b>{stats?.reviewRequired??0}<small>表現</small></b><span>今日の復習</span></span><Icon name="arrow" size={17}/></button><button onClick={()=>setTab('me')}><span className="stat-icon peach"><Icon name="star"/></span><span><b>{stats?.masteredExpressions??0}<small>表現</small></b><span>身についた言葉</span></span><Icon name="arrow" size={17}/></button></div><div className="section-heading"><h2>まずは、この動画から</h2><button onClick={()=>setTab('explore')}>動画を探す<Icon name="arrow" size={16}/></button></div>{videoCard()}<button className="discover-banner" onClick={()=>setTab('explore')}><span className="stat-icon blue"><Icon name="search"/></span><div><h3>好きなYouTube動画で学ぼう</h3><p>動画やチャンネルを探して、好きを学びに。</p></div><Icon name="arrow"/></button></div><aside className="home-secondary"><section className="card week-card"><div className="section-heading"><h2>続けた日が、力になる。</h2><span className="stat-icon peach"><Icon name="fire"/></span></div><div className="streak-number">{stats?.currentStreak??0}<span>日連続</span></div><div className="week-strip">{(stats?.week??Array.from({length:7},()=>({day:'',completed:false}))).map((d,i)=><div key={d.day||i}><span className={d.completed?'done':''}>{d.completed?<Icon name="check" size={16}/>:new Date(`${d.day||'2026-09-07'}T12:00:00`).getDate()}</span><small>{['日','月','火','水','木','金','土'][new Date(`${d.day||'2026-09-07'}T12:00:00`).getDay()]}</small></div>)}</div><p>{stats?.todayCompleted?'今日の学習、できました。おつかれさま！':'今日のひとことを、一緒に見つけよう。'}</p></section><section className="card roadmap-card"><div className="section-heading"><h2>あなたのロードマップ</h2><Icon name="book" size={19}/></div><p className="small-caption">{prefs?.roadmapApproved?'目標に向かって、一歩ずつ。':'あなたに合うプランをつくりましょう。'}</p><div className="mini-path">{roadmap.slice(0,3).map((r,i)=><div key={r.id} className={i===0?'current':''}><span>{r.completed?<Icon name="check" size={15}/>:i+1}</span><div><small>STEP {String(i+1).padStart(2,'0')}</small><b>{r.title}</b></div></div>)}</div><button className="secondary wide" onClick={()=>prefs?.onboardingCompleted?setTab('learn'):setOnboarding(true)}>{prefs?.onboardingCompleted?'ロードマップを見る':'自分のプランをつくる'}<Icon name="arrow" size={17}/></button></section><p className="gentle-note">Your pace. Your progress.</p></aside></div>}
+ {tab==='explore'&&<><form className="search-field" onSubmit={e=>{e.preventDefault();if(query.trim()){window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`,'_blank','noopener,noreferrer')}}}><Icon name="search"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="テーマや好きなチャンネルを検索" aria-label="YouTubeで検索"/><button className="primary" type="submit">YouTubeで検索<Icon name="arrow" size={18}/></button></form><p className="support-note">検索はYouTubeで開きます。アプリ内検索・自動字幕解析はAPI接続後に利用できます。</p><div className="chips">{['すべて','自然・動物','保存した動画'].map(f=><button key={f} onClick={()=>setFilter(f)} className={filter===f?'selected':''}>{f}</button>)}</div><div className="section-heading"><h2>学習できる動画</h2><span className="soft-tag">サンプルライブラリ</span></div>{filter!=='保存した動画'||prefs?.savedVideoIds.includes(sampleMaterial.id)?videoCard():<Empty icon="bookmark" title="気になる動画を、ここに。" text="動画カードの保存ボタンで、あとからすぐに見つけられます。"/>}<section className="card channel-card"><div className="channel-avatar">j</div><div><h3>jawed</h3><p>Me at the zooのチャンネル</p></div><button className="secondary" onClick={()=>prefs&&change({followedChannels:prefs.followedChannels.length?[]:[{id:'UC4QobU6STFB0P71PMvOGN5A',title:'jawed'}]})}>{prefs?.followedChannels.length?'フォロー中':'フォローする'}</button></section><p className="support-note">フォローは保存できます。新着動画の取得・通知は接続準備中です。</p></>}
+ {tab==='learn'&&<><div className="learn-grid"><section className="card large-roadmap"><div className="section-heading"><h2>あなたのロードマップ</h2><button onClick={()=>setOnboarding(true)}>プランを設定<Icon name="settings" size={16}/></button></div><p>{prefs?.goal||'「何ができるようになりたい？」から、はじめましょう。'}</p><div className="full-path">{roadmap.map((r,i)=><button key={r.id} onClick={()=>prefs?.roadmapApproved?start():setOnboarding(true)}><span className={`path-node ${i===0?'current':''}`}>{r.completed?<Icon name="check"/>:i+1}</span><div><small>STEP {String(i+1).padStart(2,'0')}</small><h3>{r.title}</h3><p>{r.description}</p></div><Icon name="arrow" size={18}/></button>)}</div>{!prefs?.roadmapApproved&&<p className="support-note">表示中はプランの例です。初期設定で目標に合わせて作成できます。</p>}</section><div><section className="card practice-card"><span className="stat-icon lavender"><Icon name="book"/></span><h2>思い出すたび、<br/>自分の言葉に。</h2><p>動画を見て、穴埋めで復習。<br/>今日の小さな練習を始めましょう。</p><button className="primary wide" onClick={start}>練習をはじめる<Icon name="arrow"/></button></section><div className="section-heading"><h2>学習中の表現</h2></div>{workspace?.progress.filter(p=>p.state!=='archived').length?<section className="card expressions">{workspace.progress.filter(p=>p.state!=='archived').map(p=><div key={p.expressionId}><b>{sampleMaterial.phrases.find(f=>f.id===p.expressionId)?.text||'動画の表現'}</b><span>{p.everMastered?'習得済み':p.state==='review_required'?'要復習':'練習中'}</span></div>)}</section>:<Empty icon="book" title="最初のひとことを見つけよう" text="練習した表現がここに並びます。"/>}</div></div><div className="section-heading"><h2>保存した動画</h2></div>{prefs?.savedVideoIds.includes(sampleMaterial.id)?videoCard(true):<Empty icon="bookmark" title="お気に入りを、自分の教材に。" text="動画の保存ボタンから追加できます。"/>}</>}
+ {tab==='me'&&<><section className="profile-banner"><div className="profile-avatar">{prefs?.displayName?.slice(0,1)||'L'}</div><div><p className="eyebrow">MY PROFILE</p><h2>{prefs?.displayName||'あなたの学習記録'}</h2><p>英語 <span className="soft-tag">{prefs?.cefr??'A1'} · 参考レベル</span></p></div><button className="secondary" onClick={()=>setOnboarding(true)}>プランを設定</button></section><div className="metric-grid">{[['継続中',stats?.currentStreak??0,'日'],['これまでの学習',stats?.totalLearningDays??0,'日'],['習得した表現',stats?.masteredExpressions??0,'表現'],['最高の連続記録',stats?.longestStreak??0,'日']].map(([label,value,unit])=><section className="card" key={label}><small>{label}</small><b>{value}<span>{unit}</span></b></section>)}</div><section className="card settings-card"><h2>自分に心地よい設定に。</h2><div className="setting-row"><div><Icon name="sun"/><span>表示テーマ</span></div><select aria-label="表示テーマ" value={prefs?.theme??'system'} onChange={e=>change({theme:e.target.value as 'system'|'light'|'dark'})}><option value="system">システムに合わせる</option><option value="light">ライト</option><option value="dark">ダーク</option></select></div><div className="setting-row"><div><Icon name="clock"/><span>1日の学習時間</span></div><select aria-label="1日の学習時間" value={prefs?.dailyGoalMinutes??10} onChange={e=>change({dailyGoalMinutes:Number(e.target.value) as WorkspacePreferences['dailyGoalMinutes']})}>{[5,10,15,20,30].map(m=><option key={m} value={m}>{m}分</option>)}</select></div><div className="setting-row"><div><Icon name="globe"/><span>学習日の日付境界</span></div><span>午前4時 · {prefs?.timeZone??'Asia/Tokyo'}</span></div><div className="setting-row"><div><Icon name="bell"/><span>プッシュ通知</span></div><span className="subtle">配信サービス接続準備中</span></div><div className="setting-row"><div><Icon name="shield"/><span>アカウント</span></div><span className="subtle">ローカル検証ユーザー</span></div></section><section className="card expressions"><h2>対象外の表現</h2>{workspace?.progress.filter(p=>p.state==='archived').map(p=><div key={p.expressionId}><b>{sampleMaterial.phrases.find(f=>f.id===p.expressionId)?.text||p.expressionId}</b><button className="secondary" onClick={async()=>{try{const r=await fetch('/api/learning/expression',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({phraseId:p.expressionId,action:'restore'})});if(!r.ok)throw new Error('復元できませんでした。');await refresh()}catch(e){setError((e as Error).message)}}}>学習に戻す</button></div>)}{!workspace?.progress.some(p=>p.state==='archived')&&<p>対象外の表現はありません。</p>}</section><p className="support-note">この版は開発用です。正式な認証、AI解析、通知配信、端末間同期はまだ接続されていません。</p></>}
+ </main><footer className="app-footer"><span>lingoflow</span><span>好きな世界を、あなたの言葉で。</span></footer></div><nav className="bottom-nav" aria-label="メインナビゲーション">{tabs.map(t=><button key={t.id} className={tab===t.id?'active':''} onClick={()=>setTab(t.id)}><Icon name={t.icon}/><span>{t.label}</span></button>)}</nav>{languageSheet&&<div className="modal-backdrop" onClick={()=>setLanguageSheet(false)}><section className="language-sheet" role="dialog" aria-modal="true" aria-label="学習言語" onClick={e=>e.stopPropagation()}><button className="icon-button close-sheet" aria-label="閉じる" onClick={()=>setLanguageSheet(false)}><Icon name="close"/></button><p className="eyebrow">YOUR LANGUAGES</p><h2>学習する言語</h2>{['英語','日本語','中国語','ドイツ語','フランス語','イタリア語','韓国語','タイ語','スペイン語','トルコ語'].map((l,i)=><button key={l} disabled={i!==0} onClick={()=>setLanguageSheet(false)}><span>{l}</span>{i===0?<Icon name="check"/>:<small>準備中</small>}</button>)}</section></div>}</div>
 }
-export function LingoflowApp({
-  initialAuthenticated,
-  initialProfile,
-  completionCount,
-}: {
-  initialAuthenticated: boolean;
-  initialProfile: UserLanguageProfile | null;
-  completionCount: number;
-}) {
-  const [stage, setStage] = useState<Stage>(
-      initialAuthenticated ? (initialProfile ? "lesson" : "language") : "login",
-    ),
-    [active, setActive] = useState(0),
-    [answer, setAnswer] = useState<string>(),
-    [graded, setGraded] = useState(false),
-    [savedCount, setSavedCount] = useState(completionCount),
-    [latestProgress, setLatestProgress] = useState<ExpressionProgress>();
-  const player = useRef<Player | null>(null),
-    timer = useRef<number | null>(null);
-  useEffect(() => {
-    if (stage !== "lesson") return;
-    let disposed = false;
-    const ready = () => {
-      player.current = new window.YT!.Player("youtube-player", {
-        videoId: sampleMaterial.youtubeVideoId,
-        playerVars: { playsinline: 1, controls: 1, rel: 0 },
-        events: {
-          onReady: (event: { target: Player }) => {
-            if (disposed) return;
-            player.current = event.target;
-            if (timer.current) clearInterval(timer.current);
-            timer.current = window.setInterval(() => {
-              const currentPlayer = player.current;
-              if (typeof currentPlayer?.getCurrentTime !== "function") return;
-              const ms = currentPlayer.getCurrentTime() * 1000,
-                index = sampleMaterial.phrases.findIndex(
-                  (phrase) => phrase.startMs <= ms && ms < phrase.endMs,
-                );
-              if (index >= 0) setActive(index);
-            }, 80);
-          },
-        },
-      });
-    };
-    if (window.YT?.Player) ready();
-    else {
-      window.onYouTubeIframeAPIReady = ready;
-      if (
-        !document.querySelector(
-          'script[src="https://www.youtube.com/iframe_api"]',
-        )
-      ) {
-        const script = document.createElement("script");
-        script.src = "https://www.youtube.com/iframe_api";
-        document.head.append(script);
-      }
-    }
-    return () => {
-      disposed = true;
-      if (timer.current) clearInterval(timer.current);
-      timer.current = null;
-      player.current?.destroy?.();
-      player.current = null;
-    };
-  }, [stage]);
-  async function login() {
-    await fetch("/api/session", { method: "POST" });
-    setStage("language");
-  }
-  async function chooseEnglish() {
-    await fetch("/api/profile", { method: "POST" });
-    setStage("lesson");
-  }
-  function seek(index: number) {
-    const phrase = sampleMaterial.phrases[index]!;
-    setActive(index);
-    player.current?.seekTo(
-      Math.max(0, phrase.startMs - phrase.replayPrerollMs) / 1000,
-      true,
-    );
-    player.current?.playVideo();
-  }
-  async function finish() {
-    const phrase = sampleMaterial.phrases[2]!,
-      correct = answer === "elephants",
-      response = await fetch("/api/learning/complete", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          requestId: crypto.randomUUID(),
-          materialId: sampleMaterial.id,
-          phraseId: phrase.id,
-          correct,
-          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        }),
-      });
-    if (response.ok) {
-      const outcome = (await response.json()) as {
-        progress: ExpressionProgress;
-        inserted: boolean;
-      };
-      setLatestProgress(outcome.progress);
-      setSavedCount((count) => count + 1);
-      setStage("done");
-    }
-  }
-  if (stage === "login")
-    return (
-      <main className="welcome">
-        <div className="orb" aria-hidden />
-        <span className="brand">{ja.brand}</span>
-        <h1>{ja.loginTitle}</h1>
-        <p>{ja.loginBody}</p>
-        <button className="primary" onClick={login}>
-          {ja.localLogin}
-        </button>
-        <small>{ja.providersPending}</small>
-      </main>
-    );
-  if (stage === "language")
-    return (
-      <main className="welcome">
-        <span className="step">1 / 1</span>
-        <h1>{ja.chooseLanguage}</h1>
-        <button className="language-card" onClick={chooseEnglish}>
-          <span>EN</span>
-          <strong>{ja.english}</strong>
-          <small>CEFR A1から開始</small>
-        </button>
-        <button className="primary" onClick={chooseEnglish}>
-          {ja.start}
-        </button>
-      </main>
-    );
-  if (stage === "quiz") {
-    const options = ["giraffes", "entrance", "elephants", "camera"],
-      correct = answer === "elephants";
-    return (
-      <main className="quiz-page">
-        <header>
-          <button className="text-button" onClick={() => setStage("lesson")}>
-            閉じる
-          </button>
-          <div className="progress">
-            <span />
-          </div>
-          <b>1 / 1</b>
-        </header>
-        <span className="kicker">VIDEO PHRASE</span>
-        <h1>In front of the [ ________ ].</h1>
-        <p>ゾウたちの目の前です。</p>
-        <div className="options">
-          {options.map((item) => (
-            <button
-              key={item}
-              className={answer === item ? "selected" : ""}
-              disabled={graded}
-              onClick={() => setAnswer(item)}
-            >
-              {item}
-            </button>
-          ))}
-        </div>
-        {graded && (
-          <div className={correct ? "feedback good" : "feedback bad"}>
-            <strong>{correct ? ja.correct : ja.incorrect}</strong>
-            <span>{correct ? "Excellent!" : "正解: elephants"}</span>
-          </div>
-        )}
-        <button
-          className="primary bottom"
-          disabled={!answer}
-          onClick={() => (graded ? void finish() : setGraded(true))}
-        >
-          {graded ? ja.finish : "回答する"}
-        </button>
-      </main>
-    );
-  }
-  if (stage === "done")
-    return (
-      <main className="welcome">
-        <div className="success-mark">✓</div>
-        <h1>{ja.completed}</h1>
-        <p>完了した教材: {savedCount}</p>
-        {latestProgress && (
-          <dl className="learning-status">
-            <div>
-              <dt>現在の練習形式</dt>
-              <dd>
-                {latestProgress.format === "choice"
-                  ? "選択肢"
-                  : latestProgress.format === "reorder"
-                    ? "単語並べ替え"
-                    : "文字・音声入力"}
-              </dd>
-            </div>
-            <div>
-              <dt>学習状態</dt>
-              <dd>
-                {latestProgress.state === "review_required"
-                  ? "要復習"
-                  : latestProgress.state === "independent"
-                    ? "習得"
-                    : "練習中"}
-              </dd>
-            </div>
-          </dl>
-        )}
-        <button
-          className="primary"
-          onClick={() => {
-            setAnswer(undefined);
-            setGraded(false);
-            setStage("lesson");
-          }}
-        >
-          動画に戻る
-        </button>
-      </main>
-    );
-  return (
-    <main className="lesson">
-      <header>
-        <div>
-          <span className="brand">{ja.brand}</span>
-          <h1>{sampleMaterial.title}</h1>
-          <p>{sampleMaterial.channelTitle}</p>
-        </div>
-        <button
-          className="quiz-button"
-          onClick={() => {
-            player.current?.pauseVideo();
-            setStage("quiz");
-          }}
-        >
-          {ja.quiz}
-        </button>
-      </header>
-      <div className="video">
-        <div id="youtube-player" />
-      </div>
-      <div className="section-title">
-        <span>{ja.transcript}</span>
-        <small>EN / JA</small>
-      </div>
-      <div className="transcript">
-        {sampleMaterial.phrases.map((phrase, index) => (
-          <button
-            key={phrase.id}
-            className={active === index ? "active" : ""}
-            onClick={() => seek(index)}
-          >
-            <time>
-              {String(Math.floor(phrase.startMs / 1000)).padStart(2, "0")}s
-            </time>
-            <span>
-              <strong>{phrase.text}</strong>
-              <small>{phrase.translation}</small>
-            </span>
-          </button>
-        ))}
-      </div>
-      <button
-        className="primary quiz-cta"
-        onClick={() => {
-          player.current?.pauseVideo();
-          setStage("quiz");
-        }}
-      >
-        {ja.quiz}
-      </button>
-    </main>
-  );
-}
+function Empty({icon,title,text}:{icon:IconName;title:string;text:string}){return <section className="empty-state"><Icon name={icon} size={30}/><h3>{title}</h3><p>{text}</p></section>}
