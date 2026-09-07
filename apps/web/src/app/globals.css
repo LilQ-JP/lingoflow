@@ -1,0 +1,331 @@
+:root {
+  --indigo: #4a3aff;
+  --orange: #ff6b35;
+  --ink: #12162c;
+  --muted: #6d7488;
+  --bg: #f3f5fb;
+  --green: #16a66a;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background:
+    radial-gradient(circle at 50% -10%, #e5e1ff, transparent 28rem), var(--bg);
+  color: var(--ink);
+  font-family: Inter, "Noto Sans JP", system-ui, sans-serif;
+}
+button {
+  font: inherit;
+}
+.welcome,
+.lesson,
+.quiz-page {
+  width: min(100% - 24px, 440px);
+  min-height: calc(100vh - 32px);
+  margin: 16px auto;
+  background: #ffffffef;
+  border: 1px solid #e4e7f0;
+  border-radius: 32px;
+  box-shadow: 0 24px 70px #1b154921;
+}
+.welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 42px;
+}
+.brand {
+  color: var(--indigo);
+  font-weight: 950;
+  font-size: 1.25rem;
+}
+.welcome h1 {
+  font-size: 2.25rem;
+  line-height: 1.2;
+  margin: 28px 0 14px;
+}
+.welcome p {
+  color: var(--muted);
+  line-height: 1.7;
+}
+.welcome small {
+  color: var(--muted);
+  margin-top: 18px;
+}
+.orb {
+  width: 120px;
+  height: 120px;
+  border-radius: 42% 58% 58% 42%;
+  background: linear-gradient(135deg, #4a3aff, #56d9eb 55%, #ff88b7);
+  box-shadow: 0 18px 45px #8e7fff66;
+  animation: float 3s ease-in-out infinite;
+}
+@keyframes float {
+  50% {
+    transform: translateY(-8px) rotate(3deg);
+  }
+}
+.primary {
+  border: 0;
+  border-radius: 17px;
+  background: linear-gradient(110deg, #4a3aff, #6c3cff);
+  color: #fff;
+  font-weight: 900;
+  padding: 16px 24px;
+  box-shadow: 0 6px 0 #3123c5;
+  cursor: pointer;
+}
+.primary:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #3123c5;
+}
+.primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.step,
+.kicker {
+  color: var(--indigo);
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+}
+.language-card {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 58px 1fr;
+  gap: 3px 12px;
+  text-align: left;
+  background: #f8f9fc;
+  border: 2px solid #ded9ff;
+  border-radius: 20px;
+  padding: 18px;
+  margin: 20px 0 30px;
+  cursor: pointer;
+}
+.language-card > span {
+  grid-row: 1/3;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--indigo);
+  color: #fff;
+  font-weight: 900;
+}
+.language-card strong {
+  font-size: 1.2rem;
+}
+.language-card small {
+  color: var(--muted);
+}
+.lesson {
+  padding-bottom: 24px;
+  overflow: hidden;
+}
+.lesson > header {
+  padding: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.lesson h1 {
+  font-size: 1.25rem;
+  margin: 6px 0 2px;
+}
+.lesson header p {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0;
+}
+.quiz-button,
+.text-button {
+  border: 0;
+  background: #efedff;
+  color: var(--indigo);
+  font-weight: 900;
+  padding: 10px 13px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.video {
+  aspect-ratio: 16/9;
+  background: #101428;
+}
+.video > div,
+.video iframe {
+  width: 100%;
+  height: 100%;
+}
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  padding: 20px 22px 12px;
+  font-weight: 900;
+}
+.section-title small {
+  color: var(--muted);
+}
+.transcript {
+  padding: 0 12px;
+  display: grid;
+  gap: 8px;
+}
+.transcript button {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 8px;
+  text-align: left;
+  border: 0;
+  background: #f7f8fc;
+  border-radius: 16px;
+  padding: 13px;
+  cursor: pointer;
+}
+.transcript button.active {
+  background: #242246;
+  color: white;
+  box-shadow: inset 4px 0 var(--orange);
+}
+.transcript time {
+  color: var(--orange);
+  font-weight: 900;
+}
+.transcript span {
+  display: grid;
+  gap: 5px;
+}
+.transcript small {
+  color: #8c93a6;
+}
+.transcript .active small {
+  color: #c8ccda;
+}
+.quiz-cta {
+  display: block;
+  margin: 18px auto 0;
+  width: calc(100% - 44px);
+}
+.quiz-page {
+  padding: 24px;
+}
+.quiz-page header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+}
+.progress {
+  height: 8px;
+  border-radius: 999px;
+  background: #e6e8f0;
+  overflow: hidden;
+}
+.progress span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--indigo);
+}
+.quiz-page h1 {
+  font-size: 2rem;
+  line-height: 1.3;
+  margin: 60px 0 18px;
+}
+.quiz-page > p {
+  color: var(--muted);
+}
+.options {
+  display: grid;
+  gap: 12px;
+  margin-top: 36px;
+}
+.options button {
+  border: 2px solid #e3e5ed;
+  background: white;
+  border-radius: 16px;
+  padding: 17px;
+  text-align: left;
+  font-weight: 850;
+  box-shadow: 0 4px 0 #d7dae4;
+  cursor: pointer;
+}
+.options button.selected {
+  border-color: var(--indigo);
+  background: #efedff;
+  color: #3024bd;
+}
+.feedback {
+  margin-top: 24px;
+  border-radius: 16px;
+  padding: 16px;
+  display: grid;
+}
+.feedback.good {
+  background: #ddf8eb;
+  color: #087c50;
+}
+.feedback.bad {
+  background: #fff0e9;
+  color: #bc4d24;
+}
+.bottom {
+  width: 100%;
+  margin-top: 24px;
+}
+.success-mark {
+  width: 92px;
+  height: 92px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #dff8ed;
+  color: var(--green);
+  font-size: 3rem;
+  font-weight: 900;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #f5f5fb;
+    --muted: #a9afc0;
+    --bg: #090c16;
+  }
+  html,
+  body {
+    background:
+      radial-gradient(circle at 50% -10%, #251f5b, transparent 30rem), var(--bg);
+  }
+  .welcome,
+  .lesson,
+  .quiz-page {
+    background: #111522;
+    border-color: #282d3d;
+  }
+  .language-card,
+  .transcript button,
+  .options button {
+    background: #1b202e;
+    border-color: #323849;
+    color: #f5f5fb;
+  }
+  .transcript button.active {
+    background: #302b63;
+  }
+  .quiz-button,
+  .text-button {
+    background: #29244e;
+  }
+  .options button {
+    box-shadow: 0 4px 0 #080b13;
+  }
+  .options button.selected {
+    background: #2d285d;
+  }
+}

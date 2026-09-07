@@ -53,6 +53,7 @@ DerivedData/
 *.db
 *.log
 .cache/
+.data/
 .tmp/
 tmp/
 

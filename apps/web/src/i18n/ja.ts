@@ -1,0 +1,16 @@
+export const ja = {
+  brand: "LingoFlow",
+  loginTitle: "動画の言葉を、自分の言葉へ。",
+  loginBody: "YouTubeのリアルな英語を、字幕・巻き戻し・クイズで身につけます。",
+  localLogin: "ローカル検証で続ける",
+  providersPending: "Google・Appleログインは接続設定後に有効になります",
+  chooseLanguage: "学習する言語を選ぶ",
+  english: "英語",
+  start: "最初の教材を始める",
+  transcript: "字幕",
+  quiz: "穴埋めクイズ",
+  correct: "正解！",
+  incorrect: "おしい！",
+  finish: "学習を記録する",
+  completed: "今日の学習を記録しました",
+} as const;
