@@ -291,6 +291,27 @@ button {
   font-size: 3rem;
   font-weight: 900;
 }
+.learning-status {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 18px 0 28px;
+}
+.learning-status div {
+  padding: 14px;
+  border: 1px solid #e5e7f0;
+  border-radius: 16px;
+  background: #f8f9fc;
+}
+.learning-status dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.learning-status dd {
+  margin: 5px 0 0;
+  font-weight: 900;
+}
 @media (prefers-color-scheme: dark) {
   :root {
     --ink: #f5f5fb;
@@ -310,7 +331,8 @@ button {
   }
   .language-card,
   .transcript button,
-  .options button {
+  .options button,
+  .learning-status div {
     background: #1b202e;
     border-color: #323849;
     color: #f5f5fb;

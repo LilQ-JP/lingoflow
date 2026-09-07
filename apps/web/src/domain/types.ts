@@ -37,6 +37,10 @@ export interface LearningAttempt {
   exerciseFormat: "choice" | "reorder" | "typing" | "speaking";
   correct: boolean;
   hintUsed: boolean;
+  firstAttempt: boolean;
+  answerRevealed: boolean;
+  retryIndex: 0 | 1 | 2;
+  productionCompleted: boolean;
   occurredAt: string;
   learningDay: string;
 }

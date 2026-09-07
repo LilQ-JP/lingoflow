@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { ja } from "@/i18n/ja";
+import type { ExpressionProgress } from "@/domain/learning-engine";
 import { sampleMaterial } from "@/domain/sample-material";
 import type { UserLanguageProfile } from "@/domain/types";
 type Stage = "login" | "language" | "lesson" | "quiz" | "done";
@@ -9,6 +10,7 @@ type Player = {
   pauseVideo(): void;
   seekTo(seconds: number, allowSeekAhead: boolean): void;
   getCurrentTime(): number;
+  destroy?(): void;
 };
 declare global {
   interface Window {
@@ -33,19 +35,26 @@ export function LingoflowApp({
     [active, setActive] = useState(0),
     [answer, setAnswer] = useState<string>(),
     [graded, setGraded] = useState(false),
-    [savedCount, setSavedCount] = useState(completionCount);
+    [savedCount, setSavedCount] = useState(completionCount),
+    [latestProgress, setLatestProgress] = useState<ExpressionProgress>();
   const player = useRef<Player | null>(null),
     timer = useRef<number | null>(null);
   useEffect(() => {
     if (stage !== "lesson") return;
+    let disposed = false;
     const ready = () => {
       player.current = new window.YT!.Player("youtube-player", {
         videoId: sampleMaterial.youtubeVideoId,
         playerVars: { playsinline: 1, controls: 1, rel: 0 },
         events: {
-          onReady: () => {
+          onReady: (event: { target: Player }) => {
+            if (disposed) return;
+            player.current = event.target;
+            if (timer.current) clearInterval(timer.current);
             timer.current = window.setInterval(() => {
-              const ms = (player.current?.getCurrentTime() ?? 0) * 1000,
+              const currentPlayer = player.current;
+              if (typeof currentPlayer?.getCurrentTime !== "function") return;
+              const ms = currentPlayer.getCurrentTime() * 1000,
                 index = sampleMaterial.phrases.findIndex(
                   (phrase) => phrase.startMs <= ms && ms < phrase.endMs,
                 );
@@ -69,7 +78,11 @@ export function LingoflowApp({
       }
     }
     return () => {
+      disposed = true;
       if (timer.current) clearInterval(timer.current);
+      timer.current = null;
+      player.current?.destroy?.();
+      player.current = null;
     };
   }, [stage]);
   async function login() {
@@ -104,6 +117,11 @@ export function LingoflowApp({
         }),
       });
     if (response.ok) {
+      const outcome = (await response.json()) as {
+        progress: ExpressionProgress;
+        inserted: boolean;
+      };
+      setLatestProgress(outcome.progress);
       setSavedCount((count) => count + 1);
       setStage("done");
     }
@@ -187,6 +205,30 @@ export function LingoflowApp({
         <div className="success-mark">✓</div>
         <h1>{ja.completed}</h1>
         <p>完了した教材: {savedCount}</p>
+        {latestProgress && (
+          <dl className="learning-status">
+            <div>
+              <dt>現在の練習形式</dt>
+              <dd>
+                {latestProgress.format === "choice"
+                  ? "選択肢"
+                  : latestProgress.format === "reorder"
+                    ? "単語並べ替え"
+                    : "文字・音声入力"}
+              </dd>
+            </div>
+            <div>
+              <dt>学習状態</dt>
+              <dd>
+                {latestProgress.state === "review_required"
+                  ? "要復習"
+                  : latestProgress.state === "independent"
+                    ? "習得"
+                    : "練習中"}
+              </dd>
+            </div>
+          </dl>
+        )}
         <button
           className="primary"
           onClick={() => {
