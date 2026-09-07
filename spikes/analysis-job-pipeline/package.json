@@ -1,0 +1,18 @@
+{
+  "name": "lingoflow-analysis-job-pipeline-spike",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "benchmark": "node --experimental-strip-types scripts/benchmark.ts"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "typescript": "^7.0.2"
+  }
+}
